@@ -8,7 +8,6 @@
             "email": "codechefmarc@gmail.com"
         }
     ],
-    "minimum-stability": "dev",
     "require": {
       "drupal/content_access": "^2.0"
     }
