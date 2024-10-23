@@ -1,0 +1,79 @@
+<?php
+
+use Drupal\Core\Form\FormStateInterface;
+
+/**
+ * Implements hook_theme().
+ */
+function content_access_simple_theme($existing, $type, $theme, $path) {
+  return [
+    'unpublished_message' => [
+      'variables' => [],
+    ],
+  ];
+}
+
+/**
+ * Implements hook_form_node_form_alter().
+ */
+function content_access_simple_form_node_form_alter(&$form, FormStateInterface $form_state, $form_id) {
+  /** @var \Drupal\node\NodeForm $formObject */
+  $formObject = $form_state->getFormObject();
+
+  /** @var \Drupal\node\Entity\Node $node */
+  $node = $formObject->getEntity();
+
+  // Get the access manager service.
+  /** @var \Drupal\content_access_simple\AccessManager $access_manager */
+  $access_manager = \Drupal::service('content_access_simple.access_manager');
+
+  // Checks permissions as well as if per-node Content Access is enabled.
+  if ($access_manager->hasAccess($node)) {
+    // Add the content access form elements.
+    $access_manager->addAccessFormElements($form, $node);
+
+    // Add submit handler to node form.
+    foreach (array_keys($form['actions']) as $action) {
+      if ($action != 'preview' && isset($form['actions'][$action]['#type']) && $form['actions'][$action]['#type'] === 'submit') {
+        $form['actions'][$action]['#submit'][]  = 'content_access_simple_node_form_submit';
+      }
+    }
+  }
+}
+
+/**
+ * Submit callback for node_form.
+ *
+ * @see content_access_simple_form_node_form_alter().
+ */
+function content_access_simple_node_form_submit($form, FormStateInterface $form_state) {
+  /** @var \Drupal\node\NodeForm $formObject */
+  $formObject = $form_state->getFormObject();
+
+  /** @var \Drupal\node\Entity\Node $node */
+  $node = $formObject->getEntity();
+
+  // Gets original settings from Content Access module.
+  $origSettings = content_access_get_per_node_settings($node);
+
+  // Gets our settings to update (view only).
+  $viewAccess = $form_state->getValue('view');
+
+  $newViewSettings = [];
+  foreach ($viewAccess as $key => $role) {
+    if ($viewAccess[$key]) {
+      $newViewSettings[] = $key;
+    }
+  }
+  $origSettings['view'] = $newViewSettings;
+
+  // Update Content Access settings.
+  content_access_save_per_node_settings($node, $origSettings);
+
+  // Rebuild permissions if they checked the box.
+  $rebuild = $form_state->getValue('rebuild');
+  if ($rebuild) {
+    node_access_rebuild(TRUE);
+  }
+
+}

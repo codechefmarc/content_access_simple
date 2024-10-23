@@ -1,0 +1,4 @@
+services:
+  content_access_simple.access_manager:
+    class: Drupal\content_access_simple\AccessManager
+    arguments: ['@current_user', '@entity_type.manager']
