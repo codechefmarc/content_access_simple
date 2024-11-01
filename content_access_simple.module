@@ -1,5 +1,6 @@
 <?php
 
+use Drupal\Core\Cache\Cache;
 use Drupal\Core\Form\FormStateInterface;
 
 /**
@@ -8,6 +9,9 @@ use Drupal\Core\Form\FormStateInterface;
 function content_access_simple_theme($existing, $type, $theme, $path) {
   return [
     'unpublished_message' => [
+      'variables' => [],
+    ],
+    'complex_message' => [
       'variables' => [],
     ],
   ];
@@ -31,6 +35,11 @@ function content_access_simple_form_node_form_alter(&$form, FormStateInterface $
   if ($access_manager->hasAccess($node)) {
     // Add the content access form elements.
     $access_manager->addAccessFormElements($form, $node);
+
+    // If there are no form elements, no need to do a custom submit.
+    if (!$form_state->getValue('view')) {
+      return;
+    }
 
     // Add submit handler to node form.
     foreach (array_keys($form['actions']) as $action) {
@@ -70,10 +79,16 @@ function content_access_simple_node_form_submit($form, FormStateInterface $form_
   // Update Content Access settings.
   content_access_save_per_node_settings($node, $origSettings);
 
-  // Rebuild permissions if they checked the box.
-  $rebuild = $form_state->getValue('rebuild');
-  if ($rebuild) {
-    node_access_rebuild(TRUE);
+  // Apply new settings.
+  $entityTypeManager = \Drupal::service('entity_type.manager');
+  $grantStorage = \Drupal::service('node.grant_storage');
+  $moduleHandler = \Drupal::service('module_handler');
+  $grants = $entityTypeManager->getAccessControlHandler('node')->acquireGrants($node);
+  $grantStorage->write($node, $grants);
+  $moduleHandler->invokeAll('per_node', [$origSettings, $node]);
+
+  foreach (Cache::getBins() as $cache_backend) {
+    $cache_backend->deleteAll();
   }
 
 }

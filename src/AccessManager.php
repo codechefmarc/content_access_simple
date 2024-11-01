@@ -85,6 +85,14 @@ class AccessManager {
       '#weight' => 100,
     ];
 
+    if ($defaults['view'] != $defaults['view_own']) {
+      $form['content_access_simple']['complex_message'] = [
+        '#theme' => 'complex_message',
+        '#weight' => -10,
+      ];
+      return;
+    }
+
     if (!$node->isPublished()) {
       $form['content_access_simple']['unpublish_message'] = [
         '#theme' => 'unpublished_message',
@@ -101,20 +109,14 @@ class AccessManager {
 
     // Runs Content Access disableCheckboxes for this module as well.
     $form['content_access_simple']['view']['#process'] = [
-        [
-          '\Drupal\Core\Render\Element\Checkboxes',
-          'processCheckboxes',
-        ],
-        [
-          '\Drupal\content_access\Form\ContentAccessRoleBasedFormTrait',
-          'disableCheckboxes',
-        ],
-      ];
-
-    $form['content_access_simple']['rebuild'] = [
-      '#type' => 'checkbox',
-      '#title' => $this->t('Rebuild permissions?'),
-      '#description' => $this->t('Any access changes will require content permissions to be rebuilt before they work. Checking this box will rebuild after saving.'),
+      [
+        '\Drupal\Core\Render\Element\Checkboxes',
+        'processCheckboxes',
+      ],
+      [
+        '\Drupal\content_access\Form\ContentAccessRoleBasedFormTrait',
+        'disableCheckboxes',
+      ],
     ];
 
   }
