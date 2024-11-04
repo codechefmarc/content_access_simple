@@ -1,0 +1,5 @@
+role_config:
+  hidden_roles:
+    - anonymous
+    - authenticated
+    - administrator

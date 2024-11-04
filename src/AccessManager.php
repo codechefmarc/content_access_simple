@@ -2,10 +2,12 @@
 
 namespace Drupal\content_access_simple;
 
+use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\node\Entity\Node;
+use Drupal\node\NodeInterface;
 
 /**
  * Service to handle Content Access Simple functions.
@@ -25,6 +27,11 @@ class AccessManager {
   protected EntityTypeManagerInterface $entityTypeManager;
 
   /**
+   * Content access configuration.
+   */
+  protected ConfigFactoryInterface $contentAccessSimpleConfig;
+
+  /**
    * Constructs a new AccessManager service.
    *
    * @var Drupal\Core\Session\AccountInterface $current_user
@@ -32,10 +39,12 @@ class AccessManager {
    */
   public function __construct(
     AccountInterface $current_user,
-    EntityTypeManagerInterface $entity_type_manager
+    EntityTypeManagerInterface $entity_type_manager,
+    ConfigFactoryInterface $config_factory,
     ) {
     $this->currentUser = $current_user;
     $this->entityTypeManager = $entity_type_manager;
+    $this->contentAccessSimpleConfig = $config_factory;
   }
 
   /**
@@ -59,13 +68,58 @@ class AccessManager {
    * Gets all the roles in the system.
    */
   private function getRoles() {
+    $hiddenRoles = $this->getHiddenRoles();
+
     $user_roles = $this->entityTypeManager->getStorage('user_role')->loadMultiple();
     $roles = [];
     foreach ($user_roles as $role) {
       /** @var Drupal\user\Entity\Role $role */
-      $roles[$role->id()] = $role->get('label');
+      if (!in_array($role->id(), $hiddenRoles)) {
+        $roles[$role->id()] = $role->get('label');
+      }
     }
     return $roles;
+  }
+
+  /**
+   * Check if permissions are too complex to use content access simple.
+   */
+  public function isComplex(NodeInterface $node) {
+    // Checks if view_own permissions on node differ from defaults.
+    $nodeOwnAccessRoles = content_access_per_node_setting('view_own', $node);
+    $defaultOwnAccessRoles = content_access_get_settings('view_own', $node->getType());
+
+    if ($nodeOwnAccessRoles != $defaultOwnAccessRoles) {
+      return TRUE;
+    }
+
+    // Checks if 'view' hidden role permissions differ on node from defaults.
+    $nodeAllAccessRoles = content_access_per_node_setting('view', $node);
+    $defaultAllAccessRoles = content_access_get_settings('view', $node->getType());
+    $hiddenRoles = $this->getHiddenRoles();
+
+    foreach ($hiddenRoles as $hiddenRole) {
+      $inNodeAccess = in_array($hiddenRole, $nodeAllAccessRoles);
+      $inDefaultAccess = in_array($hiddenRole, $defaultAllAccessRoles);
+
+      if ($inNodeAccess !== $inDefaultAccess) {
+        return TRUE;
+      }
+    }
+
+    return FALSE;
+
+  }
+
+  /**
+   * Retrieves hidden roles from this module config.
+   */
+  public function getHiddenRoles() {
+    $hiddenRoles = [];
+    $config = $this->contentAccessSimpleConfig->get('content_access_simple.settings')->get('role_config');
+    $hiddenRoles = !empty($config) ? $config['hidden_roles'] : [];
+
+    return $hiddenRoles;
   }
 
   /**
@@ -82,17 +136,18 @@ class AccessManager {
       '#type' => 'details',
       '#title' => $this->t('Access and Permissions'),
       '#open' => FALSE,
-      '#weight' => 100,
     ];
 
-    if ($defaults['view'] != $defaults['view_own']) {
+    // Show the complex message and end the form if complex.
+    if ($this->isComplex($node)) {
       $form['content_access_simple']['complex_message'] = [
         '#theme' => 'complex_message',
         '#weight' => -10,
       ];
-      return;
+      return $form;
     }
 
+    // Show the unpublished message if unpublished.
     if (!$node->isPublished()) {
       $form['content_access_simple']['unpublish_message'] = [
         '#theme' => 'unpublished_message',

@@ -18,6 +18,29 @@ function content_access_simple_theme($existing, $type, $theme, $path) {
 }
 
 /**
+ * Implements hook_entity_extra_field_info().
+ */
+function content_access_simple_entity_extra_field_info() {
+  $extra = [];
+
+  if (\Drupal::service('module_handler')->moduleExists('node')) {
+    $node_types = \Drupal::entityTypeManager()
+      ->getStorage('node_type')
+      ->loadMultiple();
+
+    foreach ($node_types as $node_type) {
+      $extra['node'][$node_type->id()]['form']['content_access_simple'] = [
+        'label' => t('Content Access Simple'),
+        'description' => t('Simpler way to change view permissions per node'),
+        'weight' => 50,
+      ];
+    }
+  }
+
+  return $extra;
+}
+
+/**
  * Implements hook_form_node_form_alter().
  */
 function content_access_simple_form_node_form_alter(&$form, FormStateInterface $form_state, $form_id) {
@@ -33,18 +56,19 @@ function content_access_simple_form_node_form_alter(&$form, FormStateInterface $
 
   // Checks permissions as well as if per-node Content Access is enabled.
   if ($access_manager->hasAccess($node)) {
+
     // Add the content access form elements.
     $access_manager->addAccessFormElements($form, $node);
 
-    // If there are no form elements, no need to do a custom submit.
-    if (!$form_state->getValue('view')) {
+    // If this is complex, no need to add a custom submit handler.
+    if ($access_manager->isComplex($node)) {
       return;
     }
 
     // Add submit handler to node form.
     foreach (array_keys($form['actions']) as $action) {
       if ($action != 'preview' && isset($form['actions'][$action]['#type']) && $form['actions'][$action]['#type'] === 'submit') {
-        $form['actions'][$action]['#submit'][]  = 'content_access_simple_node_form_submit';
+        $form['actions'][$action]['#submit'][] = 'content_access_simple_node_form_submit';
       }
     }
   }
@@ -56,6 +80,8 @@ function content_access_simple_form_node_form_alter(&$form, FormStateInterface $
  * @see content_access_simple_form_node_form_alter().
  */
 function content_access_simple_node_form_submit($form, FormStateInterface $form_state) {
+  $access_manager = \Drupal::service('content_access_simple.access_manager');
+
   /** @var \Drupal\node\NodeForm $formObject */
   $formObject = $form_state->getFormObject();
 
@@ -74,6 +100,15 @@ function content_access_simple_node_form_submit($form, FormStateInterface $form_
       $newViewSettings[] = $key;
     }
   }
+
+  // Add back in the hidden roles so they also get processed.
+  $hiddenRoles = $access_manager->getHiddenRoles();
+  foreach ($hiddenRoles as $hiddenRole) {
+    if (in_array($hiddenRole, $origSettings['view'])) {
+      $newViewSettings[] = $hiddenRole;
+    }
+  }
+
   $origSettings['view'] = $newViewSettings;
 
   // Update Content Access settings.
