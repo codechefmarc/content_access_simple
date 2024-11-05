@@ -112,12 +112,20 @@ function content_access_simple_node_form_submit($form, FormStateInterface $form_
   $origSettings['view'] = $newViewSettings;
 
   // Update Content Access settings.
-  content_access_save_per_node_settings($node, $origSettings);
-
-  // Apply new settings.
+  // The following is copied and modified from Content Access.
+  // @see content_access/src/Form/ContentAccessPageForm.php
   $entityTypeManager = \Drupal::service('entity_type.manager');
   $grantStorage = \Drupal::service('node.grant_storage');
   $moduleHandler = \Drupal::service('module_handler');
+
+  content_access_save_per_node_settings($node, $origSettings);
+
+  if ($moduleHandler->moduleExists('acl')) {
+    $values = $form_state->getValues();
+    acl_save_form($values['acl']['view']);
+    $moduleHandler->invokeAll('user_acl', $origSettings);
+  }
+
   $grants = $entityTypeManager->getAccessControlHandler('node')->acquireGrants($node);
   $grantStorage->write($node, $grants);
   $moduleHandler->invokeAll('per_node', [$origSettings, $node]);
@@ -126,4 +134,5 @@ function content_access_simple_node_form_submit($form, FormStateInterface $form_
     $cache_backend->deleteAll();
   }
 
+  // End updating Content Access settings.
 }
