@@ -120,12 +120,6 @@ function content_access_simple_node_form_submit($form, FormStateInterface $form_
 
   content_access_save_per_node_settings($node, $origSettings);
 
-  if ($moduleHandler->moduleExists('acl')) {
-    $values = $form_state->getValues();
-    acl_save_form($values['acl']['view']);
-    $moduleHandler->invokeAll('user_acl', $origSettings);
-  }
-
   $grants = $entityTypeManager->getAccessControlHandler('node')->acquireGrants($node);
   $grantStorage->write($node, $grants);
   $moduleHandler->invokeAll('per_node', [$origSettings, $node]);
