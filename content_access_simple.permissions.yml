@@ -1,7 +1,7 @@
 grant content access simple:
-  title: 'Grant content access simple'
-  description: 'View and modify content access simple for any nodes'
+  title: 'Allow content access simple for all'
+  description: 'Allow changing view permissions for all content types configured with per-node content access'
 
 grant own content access simple:
-  title: 'Grant own content access simple'
-  description: 'View and modify content access simple for own nodes'
+  title: 'Allow content access simple for own'
+  description: 'Allow changing view permissions for own nodes configured with per-node content access'
