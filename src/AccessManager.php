@@ -4,6 +4,7 @@ namespace Drupal\content_access_simple;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\node\Entity\Node;
@@ -32,6 +33,13 @@ class AccessManager {
   protected ConfigFactoryInterface $contentAccessSimpleConfig;
 
   /**
+   * Logger channel service.
+   *
+   * @var \Drupal\Core\Logger\LoggerChannelInterface
+   */
+  protected $logger;
+
+  /**
    * Constructs a new AccessManager service.
    *
    * @var Drupal\Core\Session\AccountInterface $current_user
@@ -41,10 +49,12 @@ class AccessManager {
     AccountInterface $current_user,
     EntityTypeManagerInterface $entity_type_manager,
     ConfigFactoryInterface $config_factory,
+    LoggerChannelFactoryInterface $logger_factory,
     ) {
     $this->currentUser = $current_user;
     $this->entityTypeManager = $entity_type_manager;
     $this->contentAccessSimpleConfig = $config_factory;
+    $this->logger = $logger_factory->get('content_access_simple');
   }
 
   /**
@@ -90,6 +100,17 @@ class AccessManager {
     $defaultOwnAccessRoles = content_access_get_settings('view_own', $node->getType());
 
     if ($nodeOwnAccessRoles != $defaultOwnAccessRoles) {
+      if ($this->debugEnabled()) {
+        $message = $this->t(
+          'The view own permissions for @node_title (@node_id) differ from the view own permissions for the @node_type content type.',
+            [
+              '@node_title' => $node->getTitle(),
+              '@node_id' => $node->id(),
+              '@node_type' => $node->getType(),
+            ]
+        );
+        $this->logger->warning($message);
+      }
       return TRUE;
     }
 
@@ -103,6 +124,17 @@ class AccessManager {
       $inDefaultAccess = in_array($hiddenRole, $defaultAllAccessRoles);
 
       if ($inNodeAccess !== $inDefaultAccess) {
+        if ($this->debugEnabled()) {
+          $message = $this->t(
+            'The view permissions for hidden roles for @node_title (@node_id) differ from the view permissions for the @node_type content type.',
+              [
+                '@node_title' => $node->getTitle(),
+                '@node_id' => $node->id(),
+                '@node_type' => $node->getType(),
+              ]
+          );
+          $this->logger->warning($message);
+        }
         return TRUE;
       }
     }
@@ -120,6 +152,15 @@ class AccessManager {
     $hiddenRoles = !empty($config) ? $config['hidden_roles'] : [];
 
     return $hiddenRoles;
+  }
+
+  /**
+   * Returns if debugging is enabled.
+   */
+  private function debugEnabled() {
+    $debugEnabled = $this->contentAccessSimpleConfig->get('content_access_simple.settings')->get('debug') ?: FALSE;
+
+    return $debugEnabled;
   }
 
   /**

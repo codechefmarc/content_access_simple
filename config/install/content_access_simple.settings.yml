@@ -3,3 +3,4 @@ role_config:
     - anonymous
     - authenticated
     - administrator
+debug: false

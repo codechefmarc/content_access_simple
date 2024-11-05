@@ -89,7 +89,7 @@ function content_access_simple_node_form_submit($form, FormStateInterface $form_
   $node = $formObject->getEntity();
 
   // Gets original settings from Content Access module.
-  $origSettings = content_access_get_per_node_settings($node);
+  $origSettings = content_access_get_per_node_settings($node) ?: content_access_get_settings('all', $node->getType());
 
   // Gets our settings to update (view only).
   $viewAccess = $form_state->getValue('view');
