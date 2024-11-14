@@ -261,6 +261,11 @@ class AccessManager {
   public static function disableRoles(&$element, FormStateInterface $form_state, &$complete_form) {
     $config = \Drupal::service('config.factory')->get('content_access_simple.settings');
     $disabled_roles = $config->get('role_config.disabled_roles');
+
+    if (!$disabled_roles) {
+      return $element;
+    }
+
     foreach (Element::children($element) as $key) {
       if (in_array($key, $disabled_roles)) {
         $element[$key]['#disabled'] = TRUE;

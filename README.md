@@ -1,6 +1,7 @@
 # Content Access Simple
 
-This module utilized the functionality of the Content Access module but adds a simpler interface for managing view access of specific nodes. Instead of a full screen of checkboxes, content editors are given a simpler list of only the roles who can view the node.
+This module utilizes the functionality of the Content Access module but adds a simpler interface for managing view access of specific nodes.
+Instead of a full screen of checkboxes, content editors are given a simpler list of only the roles who can view the node and it is located on the node edit form itself.
 
 This is only enabled when "Per content node access control settings" are enabled as part of the Content Access module and only appear for roles who have the permissions set for this module (`grant content access simple` and/or `grant own content access simple`).
 
@@ -15,7 +16,11 @@ This is only enabled when "Per content node access control settings" are enabled
 
 ## Hidden Roles
 
-This module also allows to hide roles from the view list so content editors cannot change permissions for specific roles. Currently this is done only in config via `content_access_simple.settings.yml`. A future update will allow these to be configured in the UI.
+This module also allows to hide roles from the view list so content editors cannot change permissions for specific roles. Currently this is done only in config via `content_access_simple.settings.yml` via `role_config.hidden_roles`. A future update will allow these to be configured in the UI.
+
+## Disabled Roles
+
+Also in the config is the ability to disable checkboxes preventing changing the permission on other roles. For instance, you may want to not allow lower roles to change the permission of higher roles. Currently this is done only in config via `content_access_simple.settings.yml` via `role_config.disabled_roles`. A future update will allow these to be configured in the UI.
 
 ## Complex permissions
 
@@ -25,3 +30,5 @@ If either of the following cases are detected, "complex" permissions are trigger
 * For hidden roles, if "view all" permissions differs from the default "view all" permissions for the content type.
 
 To fix, check these permissions using the regular Content Access form at `/node/{nid}/access` as compared to the permissions on the content type at `/admin/structure/types/manage/{content_type}/access`
+
+If the config value `debug` is set in `content_access_simple.settings.yml`, output to the logs will log these complex scenarios. In a future update, this will be allowed to be set via the UI.
