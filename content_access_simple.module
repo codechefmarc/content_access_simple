@@ -1,6 +1,7 @@
 <?php
 
 use Drupal\Core\Cache\Cache;
+use Drupal\Core\Entity\Entity\EntityFormDisplay;
 use Drupal\Core\Form\FormStateInterface;
 
 /**
@@ -44,11 +45,19 @@ function content_access_simple_entity_extra_field_info() {
  * Implements hook_form_node_form_alter().
  */
 function content_access_simple_form_node_form_alter(&$form, FormStateInterface $form_state, $form_id) {
-  /** @var \Drupal\node\NodeForm $formObject */
-  $formObject = $form_state->getFormObject();
+  /** @var \Drupal\node\NodeForm $form_object */
+  $form_object = $form_state->getFormObject();
 
   /** @var \Drupal\node\Entity\Node $node */
-  $node = $formObject->getEntity();
+  $node = $form_object->getEntity();
+  $bundle = $node->bundle();
+
+  $form_display = EntityFormDisplay::load('node.' . $bundle . '.default');
+
+  // If the display of our custom field is not enabled, return.
+  if (!$form_display || !$form_display->getComponent('content_access_simple')) {
+    return;
+  }
 
   // Get the access manager service.
   /** @var \Drupal\content_access_simple\AccessManager $access_manager */
