@@ -6,5 +6,9 @@
   </div>
   <div class="messages__content">
     {{ message }}
+    {% if sub_message %}
+      <br>
+      {{ sub_message }}
+    {% endif %}
   </div>
 </div>

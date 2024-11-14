@@ -1,4 +1,14 @@
+{% if roles_view_unpublished %}
+  {% set role_message %}
+    Only the following roles can view unpublished pages of type {{ content_type }}:
+    {% for role in roles_view_unpublished %}
+      <strong>{{ role }}</strong>{{ not loop.last ? ',' }}
+    {% endfor %}
+  {% endset %}
+{% endif %}
+
 {% include "@content_access_simple/messages-template.html.twig" with {
   title: 'This content is unpublished',
-  message: 'These settings only take effect once this page is published.'
+  message: 'These settings only take effect once this page is published.',
+  sub_message: role_message
 }%}

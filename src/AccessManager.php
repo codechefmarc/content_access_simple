@@ -4,11 +4,15 @@ namespace Drupal\content_access_simple;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
+use Drupal\Core\Render\Element;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
+use Drupal\Core\Template\Attribute;
 use Drupal\node\Entity\Node;
 use Drupal\node\NodeInterface;
+use Drupal\user\Entity\Role;
 
 /**
  * Service to handle Content Access Simple functions.
@@ -85,7 +89,8 @@ class AccessManager {
     foreach ($user_roles as $role) {
       /** @var Drupal\user\Entity\Role $role */
       if (!in_array($role->id(), $hiddenRoles)) {
-        $roles[$role->id()] = $role->get('label');
+        $label = ($role->id() == 'authenticated') ? $this->t('All logged in users') : $role->get('label');
+        $roles[$role->id()] = $label;
       }
     }
     return $roles;
@@ -167,6 +172,7 @@ class AccessManager {
    * Adds content access form elements to the node form.
    */
   public function addAccessFormElements(array &$form, $node) {
+    $config = $this->contentAccessSimpleConfig->get('content_access_simple.settings');
     $defaults = [];
 
     foreach (_content_access_get_operations() as $op => $label) {
@@ -190,8 +196,11 @@ class AccessManager {
 
     // Show the unpublished message if unpublished.
     if (!$node->isPublished()) {
+      $roles_view_unpublished = $this->getRolesViewUnpublished($node);
       $form['content_access_simple']['unpublish_message'] = [
         '#theme' => 'unpublished_message',
+        '#roles_view_unpublished' => $roles_view_unpublished,
+        '#content_type' => $node->type->entity->label(),
         '#weight' => -10,
       ];
     }
@@ -199,11 +208,12 @@ class AccessManager {
     $form['content_access_simple']['view'] = [
       '#type' => 'checkboxes',
       '#title' => $this->t('Visibility'),
+      '#description' => $config->get('help_text_view') ?? NULL,
       '#options' => $this->getRoles(),
       '#default_value' => $defaults['view'],
     ];
 
-    // Runs Content Access disableCheckboxes for this module as well.
+    // Runs Content Access disableCheckboxes as well as our disableRoles.
     $form['content_access_simple']['view']['#process'] = [
       [
         '\Drupal\Core\Render\Element\Checkboxes',
@@ -213,8 +223,55 @@ class AccessManager {
         '\Drupal\content_access\Form\ContentAccessRoleBasedFormTrait',
         'disableCheckboxes',
       ],
+      [
+        '\Drupal\content_access_simple\AccessManager',
+        'disableRoles',
+      ],
     ];
 
+  }
+
+  /**
+   * Retrieves roles who have access to view unpublished content.
+   *
+   * @param Drupal\node\Entity\Node $node
+   *   The node object.
+   *
+   * @return array
+   *   An array of role labels who have access to view unpublished content.
+   */
+  private function getRolesViewUnpublished($node) {
+    $roles_unpublished_access = [];
+    $bundle = $node->getType();
+    $all_roles = Role::loadMultiple();
+    foreach ($all_roles as $site_role) {
+      if ($site_role->hasPermission("view any unpublished $bundle content") || $site_role->hasPermission("view any unpublished content")) {
+        $roles_unpublished_access[] = $site_role->label();
+      }
+    }
+    return $roles_unpublished_access;
+  }
+
+  /**
+   * Checkboxes access for content.
+   *
+   * Formapi #process callback, that disables checkboxes for roles in
+   * disabled_roles in config for this module.
+   */
+  public static function disableRoles(&$element, FormStateInterface $form_state, &$complete_form) {
+    $config = \Drupal::service('config.factory')->get('content_access_simple.settings');
+    $disabled_roles = $config->get('role_config.disabled_roles');
+    foreach (Element::children($element) as $key) {
+      if (in_array($key, $disabled_roles)) {
+        $element[$key]['#disabled'] = TRUE;
+        $element[$key]['#prefix'] = '<span ' . new Attribute([
+          'title' => t("This role is disabled in the Content Access Simple configuration."),
+        ]) . '>';
+        $element[$key]['#suffix'] = "</span>";
+      }
+    }
+
+    return $element;
   }
 
 }
