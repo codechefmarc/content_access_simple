@@ -73,9 +73,8 @@ class AccessManager {
     }
 
     $allNodesAccess = $this->currentUser->hasPermission('grant content access simple');
-    $ownNodeAccess = $this->currentUser->hasPermission('grant own content access simple') && ($this->currentUser->id() == $node->getOwnerId());
 
-    return $allNodesAccess || $ownNodeAccess;
+    return $allNodesAccess;
   }
 
   /**
