@@ -4,13 +4,16 @@ namespace Drupal\content_access_simple;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\Core\Render\Element;
+use Drupal\Core\Render\Markup;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\Template\Attribute;
 use Drupal\node\Entity\Node;
+use Drupal\node\NodeForm;
 use Drupal\node\NodeInterface;
 use Drupal\user\Entity\Role;
 
@@ -44,6 +47,13 @@ class AccessManager {
   protected $logger;
 
   /**
+   * The module handler service.
+   *
+   * @var \Drupal\Core\Extension\ModuleHandlerInterface
+   */
+  protected $moduleHandler;
+
+  /**
    * Constructs a new AccessManager service.
    *
    * @var Drupal\Core\Session\AccountInterface $current_user
@@ -54,11 +64,13 @@ class AccessManager {
     EntityTypeManagerInterface $entity_type_manager,
     ConfigFactoryInterface $config_factory,
     LoggerChannelFactoryInterface $logger_factory,
+    ModuleHandlerInterface $module_handler,
     ) {
     $this->currentUser = $current_user;
     $this->entityTypeManager = $entity_type_manager;
     $this->contentAccessSimpleConfig = $config_factory;
     $this->logger = $logger_factory->get('content_access_simple');
+    $this->moduleHandler = $module_handler;
   }
 
   /**
@@ -195,11 +207,10 @@ class AccessManager {
 
     // Show the unpublished message if unpublished.
     if (!$node->isPublished()) {
-      $roles_view_unpublished = $this->getRolesViewUnpublished($node);
+      $unpublished_message = $this->getUnpublishedMessage($node);
       $form['content_access_simple']['unpublish_message'] = [
         '#theme' => 'unpublished_message',
-        '#roles_view_unpublished' => $roles_view_unpublished,
-        '#content_type' => $node->type->entity->label(),
+        '#sub_message' => $unpublished_message,
         '#weight' => -10,
       ];
     }
@@ -231,24 +242,48 @@ class AccessManager {
   }
 
   /**
-   * Retrieves roles who have access to view unpublished content.
+   * Retrieves an unpublished message that is either dynamic or static.
    *
    * @param Drupal\node\Entity\Node $node
    *   The node object.
    *
-   * @return array
-   *   An array of role labels who have access to view unpublished content.
+   * @return string
+   *   An unpublished message.
    */
-  private function getRolesViewUnpublished($node) {
-    $roles_unpublished_access = [];
-    $bundle = $node->getType();
-    $all_roles = Role::loadMultiple();
-    foreach ($all_roles as $site_role) {
-      if ($site_role->hasPermission("view any unpublished $bundle content") || $site_role->hasPermission("view any unpublished content")) {
-        $roles_unpublished_access[] = $site_role->label();
+  private function getUnpublishedMessage($node) {
+    $unpublished_message = NULL;
+    $config = $this->contentAccessSimpleConfig->get('content_access_simple.settings');
+    if ($unpublished_message = $config->get('unpublished_message')) {
+      return $unpublished_message;
+    }
+    else {
+      // If we aren't using view unpublished module, exit early.
+      if (!$this->moduleHandler->moduleExists('view_unpublished')) {
+        return NULL;
+      }
+
+      $roles_unpublished_access = [];
+      $bundle = $node->getType();
+      $all_roles = Role::loadMultiple();
+      foreach ($all_roles as $site_role) {
+        if ($site_role->hasPermission("view any unpublished $bundle content") || $site_role->hasPermission("view any unpublished content")) {
+          $roles_unpublished_access[] = $site_role->label();
+        }
+      }
+
+      if ($roles_unpublished_access) {
+        $dynamic_roles = implode(", ", $roles_unpublished_access);
+        $dynamic_roles = Markup::create('<strong>' . $dynamic_roles . '</strong>');
+        $unpublished_message = Markup::create($this->t(
+          'Only the following roles can view unpublished pages of type @content_type: @dynamic_roles',
+          [
+            '@content_type' => $node->type->entity->label(),
+            '@dynamic_roles' => $dynamic_roles,
+          ]));
       }
     }
-    return $roles_unpublished_access;
+
+    return $unpublished_message;
   }
 
   /**
@@ -260,14 +295,18 @@ class AccessManager {
   public static function disableRoles(&$element, FormStateInterface $form_state, &$complete_form) {
     $config = \Drupal::service('config.factory')->get('content_access_simple.settings');
     $disabled_roles = $config->get('role_config.disabled_roles');
-
-    if (!$disabled_roles) {
+    $form_object = $form_state->getFormObject();
+    if (!$disabled_roles || !$form_object instanceof NodeForm) {
       return $element;
     }
+
+    $node = $form_object->getEntity();
+    $per_node_settings = content_access_per_node_setting('view', $node);
 
     foreach (Element::children($element) as $key) {
       if (in_array($key, $disabled_roles)) {
         $element[$key]['#disabled'] = TRUE;
+        $element[$key]['#default_value'] = !empty(array_intersect($per_node_settings, $disabled_roles));
         $element[$key]['#prefix'] = '<span ' . new Attribute([
           'title' => t("This role is disabled in the Content Access Simple configuration."),
         ]) . '>';

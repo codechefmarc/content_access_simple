@@ -11,8 +11,7 @@ function content_access_simple_theme($existing, $type, $theme, $path) {
   return [
     'unpublished_message' => [
       'variables' => [
-        'roles_view_unpublished' => [],
-        'content_type' => NULL,
+        'sub_message' => NULL,
       ],
     ],
     'complex_message' => [
