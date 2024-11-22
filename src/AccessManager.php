@@ -65,7 +65,7 @@ class AccessManager {
     ConfigFactoryInterface $config_factory,
     LoggerChannelFactoryInterface $logger_factory,
     ModuleHandlerInterface $module_handler,
-    ) {
+  ) {
     $this->currentUser = $current_user;
     $this->entityTypeManager = $entity_type_manager;
     $this->contentAccessSimpleConfig = $config_factory;

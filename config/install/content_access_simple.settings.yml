@@ -3,7 +3,7 @@ role_config:
     - anonymous
     - authenticated
     - administrator
-  disabled_roles:
+  disabled_roles: []
 debug: false
 help_text_view: 'Only the chosen roles will be able to view this content'
 unpublished_message: ''

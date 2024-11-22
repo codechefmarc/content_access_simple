@@ -1,0 +1,33 @@
+content_access_simple.settings:
+  type: config_object
+  label: 'Content Access Simple Settings'
+  mapping:
+    role_config:
+      type: mapping
+      label: 'Role Configuration'
+      mapping:
+        hidden_roles:
+          type: sequence
+          label: 'Hidden Roles'
+          nullable: true
+          sequence:
+            type: string
+            label: 'Role ID'
+        disabled_roles:
+          type: sequence
+          label: 'Disabled Roles'
+          nullable: true
+          sequence:
+            type: string
+            label: 'Role ID'
+    debug:
+      type: boolean
+      label: 'Debug'
+    help_text_view:
+      type: string
+      label: 'Help text'
+      nullable: true
+    unpublished_message:
+      type: string
+      label: 'Unpublished message text'
+      nullable: true
