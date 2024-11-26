@@ -63,13 +63,6 @@ class ContentAccessSimpleTest extends BrowserTestBase {
   protected $node1;
 
   /**
-   * Node object to perform test.
-   *
-   * @var \Drupal\node\Entity\Node
-   */
-  protected $node2;
-
-  /**
    * {@inheritdoc}
    */
   protected $defaultTheme = 'stark';
@@ -133,17 +126,10 @@ class ContentAccessSimpleTest extends BrowserTestBase {
       'status' => 1,
       'title' => $this->englishTitle,
     ]);
-    $this->node2 = $this->drupalCreateNode([
-      'type' => $this->contentType->id(),
-      'language' => 'en',
-      'status' => 1,
-      'title' => $this->englishTitle,
-    ]);
 
     // Enable per node access.
     $this->changeAccessPerNode();
     $this->drupalLogout();
-
   }
 
   /**
@@ -191,7 +177,7 @@ class ContentAccessSimpleTest extends BrowserTestBase {
     $config = \Drupal::service('config.factory')->getEditable('content_access_simple.settings');
     $config->set('role_config.hidden_roles', [$this->customRoleId])->save();
 
-    // Login as content editor and test if tha role is missing from the list.
+    // Login as content editor and test if that role is missing from the list.
     $this->drupalLogin($this->contentEditorUser);
     $this->drupalGet('node/' . $this->node1->id() . '/edit');
     $this->assertSession()->pageTextNotContains(ucfirst($this->customRoleId));
@@ -211,6 +197,31 @@ class ContentAccessSimpleTest extends BrowserTestBase {
     $page = $this->getSession()->getPage();
     $checkbox = $page->find('css', 'input[name="view[' . $this->customRoleId . ']"]');
     $this->assertTrue($checkbox->hasAttribute('disabled'), 'The checkbox for the disabled role is correctly disabled.');
+  }
+
+  /**
+   * Test complex permissions set.
+   */
+  public function testComplexPermissions() {
+    // Remove content type permissions for view_own.
+    $this->drupalLogin($this->adminUser);
+    $accessPermissions = [
+      'view_own[authenticated]' => FALSE,
+    ];
+    $this->changeAccessContentType($accessPermissions);
+    $this->drupalLogout();
+
+    // Set specific node view_own permissions.
+    $settings = [
+      'view_own' => [
+        'authenticated',
+      ],
+    ];
+    content_access_save_per_node_settings($this->node1, $settings);
+
+    $this->drupalLogin($this->contentEditorUser);
+    $this->drupalGet('node/' . $this->node1->id() . '/edit');
+    $this->assertSession()->pageTextContains('Complex permissions set');
   }
 
 }

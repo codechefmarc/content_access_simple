@@ -20,7 +20,7 @@ This module also allows to hide roles from the view list so content editors cann
 
 ## Disabled Roles
 
-Also in the config is the ability to disable checkboxes preventing changing the permission on other roles. For instance, you may want to not allow lower roles to change the permission of higher roles. Currently this is done only in config via `content_access_simple.settings.yml` via `role_config.disabled_roles`. A future update will allow these to be configured in the UI.
+There is also an ability to disable checkboxes preventing changing the permission on other roles. For instance, you may want to not allow lower roles to change the permission of higher roles. Currently this is done only in config via `content_access_simple.settings.yml` via `role_config.disabled_roles`. A future update will allow these to be configured in the UI.
 
 ## Complex permissions
 
@@ -32,3 +32,7 @@ If either of the following cases are detected, "complex" permissions are trigger
 To fix, check these permissions using the regular Content Access form at `/node/{nid}/access` as compared to the permissions on the content type at `/admin/structure/types/manage/{content_type}/access`
 
 If the config value `debug` is set in `content_access_simple.settings.yml`, output to the logs will log these complex scenarios. In a future update, this will be allowed to be set via the UI.
+
+## Custom messaging
+
+A custom `unpublished_message` and `help_text_view` are also available in config (to be added ot UI at a later time) to be able to customize those two messages. If the `view_unpublished` module is installed and the `unpublished_message` is not set, this module will list the roles who can view unpublished nodes of that specific content type.
